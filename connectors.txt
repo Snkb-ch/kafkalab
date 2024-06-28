@@ -1,0 +1,56 @@
+connector.class=io.confluent.connect.elasticsearch.ElasticsearchSinkConnector
+behavior.on.null.values=IGNORE
+connection.password=bC6=esR3GJvEaS9U5KR*
+topics=dbserver1.public.students, dbserver1.public.schedule,dbserver1.public.lectures,dbserver1.public.groups,dbserver1.public.courses, dbserver1.public.courses_in_spec,dbserver1.public.univ_spec,dbserver1.public.cafedra,dbserver1.public.univ,dbserver1.public.spec,dbserver1.public.univmain,dbserver1.public.lectures_materials
+tasks.max=1
+connection.username=elastic
+elastic.security.protocol=PLAINTEXT
+name=Elastic-connector
+connection.url=http://host.docker.internal:9200/
+key.ignore=true
+key.converter.schema.registry.url=http://schema-registry:8081
+key.converter=io.confluent.connect.avro.AvroConverter
+
+
+
+
+
+connector.class=io.lenses.streamreactor.connect.redis.sink.RedisSinkConnector
+connect.redis.port=6379
+connect.redis.kcql=SELECT name FROM dbserver1.public.students PK student_id
+tasks.max=1
+topics=dbserver1.public.students
+connect.redis.host=redis
+name=redis-connect
+transforms=extractAfter
+transforms.extractAfter.type=org.apache.kafka.connect.transforms.ExtractField$Value
+transforms.extractAfter.field=after
+
+
+connector.class=com.mongodb.kafka.connect.MongoSinkConnector
+database=my_database
+topics=dbserver1.public.univmain,dbserver1.public.univ,dbserver1.public.cafedra
+connection.uri=mongodb://mongo:27017/
+name=gerger
+change.data.capture.handler=com.mongodb.kafka.connect.sink.cdc.debezium.rdbms.postgres.PostgresHandler
+
+
+
+
+connector.class=streams.kafka.connect.sink.Neo4jSinkConnector
+neo4j.topic.cypher.dbserver1.public.courses=CALL apoc.do.case([event.op = 'c', 'MERGE (c:Course {id: event.after.course_id}) MERGE (l:Lecture {id: event.after.lecture_id}) MERGE (c)-[:INCLUDES_LECTURE]->(l)', event.op = 'd', 'MATCH (c:Course {id: event.before.course_id}) DETACH DELETE c', event.op = 'u', 'MATCH (c:Course {id: event.before.course_id}) MATCH (lBefore:Lecture {id: event.before.lecture_id}) MATCH (c)-[r:INCLUDES_LECTURE]->(lBefore) DELETE r WITH * MATCH (cc:Course {id: event.before.course_id}) MATCH (lAfter:Lecture {id: event.after.lecture_id}) MERGE (cc)-[:INCLUDES_LECTURE]->(lAfter)'], '', {event: event}) YIELD value as course RETURN course
+neo4j.authentication.basic.password=99679926
+neo4j.topic.cypher.dbserver1.public.cafedra=CALL apoc.do.case([event.op = 'c', 'MERGE (c:Cafedra {id: event.after.cafedra_id}) MERGE (u:University {id: event.after.uni_id}) MERGE (u)-[:INCLUDES_CAFEDRA]->(c)', event.op = 'd', 'MATCH (c:Cafedra {id: event.before.cafedra_id}) DETACH DELETE c', event.op = 'u', 'MATCH (c:Cafedra {id: event.before.cafedra_id}) MATCH (u:University {id: event.before.uni_id}) MATCH (u)-[r:INCLUDES_CAFEDRA]->(c) DELETE r WITH * MATCH (cc:Cafedra {id: event.before.cafedra_id}) MATCH (uu:University {id: event.after.uni_id}) MERGE (uu)-[:INCLUDES_CAFEDRA]->(cc)'], '', {event: event}) YIELD value as cafedra RETURN cafedra
+topics=dbserver1.public.students,dbserver1.public.lectures,dbserver1.public.groups,dbserver1.public.courses, dbserver1.public.courses_in_spec,dbserver1.public.univ_spec,dbserver1.public.cafedra,dbserver1.public.univ,dbserver1.public.spec
+neo4j.server.uri=bolt://host.docker.internal:7687/
+neo4j.topic.cypher.dbserver1.public.univ=CALL apoc.do.case([event.op = 'c', 'MERGE (u:University {id: event.after.uni_id}) MERGE (mu:MainUniversity {id: event.after.unimain_id}) MERGE (mu)-[:INCLUDES_UNIVERSITY]->(u)', event.op = 'd', 'MATCH (u:University {id: event.before.uni_id}) DETACH DELETE u', event.op = 'u', 'MATCH (u:University {id: event.before.uni_id}) MATCH (mu:MainUniversity {id: event.before.unimain_id}) MATCH (mu)-[r:INCLUDES_UNIVERSITY]->(u) DELETE r WITH * MATCH (uu:University {id: event.after.uni_id}) MERGE (mu)-[:INCLUDES_UNIVERSITY]->(uu)'], '', {event: event}) YIELD value as university RETURN university
+neo4j.topic.cypher.dbserver1.public.students=CALL apoc.do.case([event.op = 'c', 'MERGE (s:Student {id: event.after.student_id}) MERGE (g:Group {id: event.after.group_id}) MERGE (s)-[:MEMBER_OF]->(g)', event.op = 'd', 'MATCH (s:Student {id: event.before.student_id}) DETACH DELETE s', event.op = 'u', 'MATCH (s:Student{id: event.before.student_id}) MATCH (g:Group{id: event.before.group_id}) MATCH (s)-[r:MEMBER_OF]->(g) DELETE r WITH * MATCH (ss:Student{id: event.before.student_id}) MATCH (gg:Group{id: event.after.group_id}) MERGE (ss)-[:MEMBER_OF]->(gg)'], '', {event: event}) YIELD value as student RETURN student
+neo4j.topic.cypher.dbserver1.public.groups=CALL apoc.do.case([event.op = 'c', 'MERGE (g:Group {id: event.after.group_id}) MERGE (s:Spec {id: event.after.spec_id}) MERGE (s)-[:INCLUDES_GROUP]->(g)', event.op = 'd', 'MATCH (g:Group {id: event.before.group_id}) DETACH DELETE g', event.op = 'u', 'MATCH (g:Group{id: event.before.group_id}) MATCH (sBefore:Spec{id: event.before.spec_id}) MATCH (sBefore)-[r:INCLUDES_GROUP]->(g) DELETE r WITH * MATCH (gg:Group{id: event.before.group_id}) MATCH (sAfter:Spec{id: event.after.spec_id}) MERGE (sAfter)-[:INCLUDES_GROUP]->(gg)'], '', {event: event}) YIELD value as group RETURN group
+neo4j.topic.cypher.dbserver1.public.univ_spec=CALL apoc.do.case([event.op = 'c', 'MERGE (u:University {id: event.after.uni_id}) MERGE (s:Spec {id: event.after.spec_id}) MERGE (u)-[:INCLUDES_SPEC]->(s)', event.op = 'd', 'MATCH (u:University {id: event.before.uni_id}) MATCH (s:Spec {id: event.before.spec_id}) MATCH (u)-[r:INCLUDES_SPEC]->(s) DELETE r', event.op = 'u', 'MATCH (u:University {id: event.before.uni_id}) MATCH (sBefore:Spec {id: event.before.spec_id}) MATCH (u)-[r:INCLUDES_SPEC]->(sBefore) DELETE r WITH * MATCH (uu:University {id: event.after.uni_id}) MATCH (ss:Spec {id: event.after.spec_id}) MERGE (uu)-[:INCLUDES_SPEC]->(ss)'], '', {event: event}) YIELD value as univ_spec RETURN univ_spec
+neo4j.authentication.basic.username=neo4j
+name=Neo4jSinkConnector
+errors.tolerance=all
+neo4j.encryption.enabled=false
+neo4j.topic.cypher.dbserver1.public.lectures=CALL apoc.do.case([event.op = 'c', 'MERGE (l:Lecture {id: event.after.lecture_id}) MERGE (c:Course {id: event.after.course_id}) MERGE (c)-[:INCLUDES_LECTURE]->(l)', event.op = 'd', 'MATCH (l:Lecture {id: event.before.lecture_id}) DETACH DELETE l', event.op = 'u', 'MATCH (l:Lecture {id: event.before.lecture_id}) MATCH (cBefore:Course {id: event.before.course_id}) MATCH (cBefore)-[r:INCLUDES_LECTURE]->(l) DELETE r WITH * MATCH (ll:Lecture {id: event.before.lecture_id}) MATCH (cc:Course {id: event.after.course_id}) MERGE (cc)-[:INCLUDES_LECTURE]->(ll)'], '', {event: event}) YIELD value as lecture RETURN lecture
+neo4j.topic.cypher.dbserver1.public.spec=CALL apoc.do.case([event.op = 'c', 'MERGE (s:Spec {id: event.after.spec_id}) MERGE (c:Cafedra {id: event.after.main_caf}) MERGE (c)-[:INCLUDES_SPEC]->(s)', event.op = 'd', 'MATCH (s:Spec {id: event.before.spec_id}) DETACH DELETE s', event.op = 'u', 'MATCH (s:Spec {id: event.before.spec_id}) MATCH (cBefore:Cafedra {id: event.before.main_caf}) MATCH (cBefore)-[r:INCLUDES_SPEC]->(s) DELETE r WITH * MATCH (ss:Spec {id: event.after.spec_id}) MATCH (cc:Cafedra {id: event.after.main_caf}) MERGE (cc)-[:INCLUDES_SPEC]->(ss)'], '', {event: event}) YIELD value as spec RETURN spec
+neo4j.topic.cypher.dbserver1.public.courses_in_spec=CALL apoc.do.case([event.op = 'c', 'MERGE (s:Spec {id: event.after.spec_id}) MERGE (c:Course {id: event.after.course_id}) MERGE (s)-[:INCLUDES_COURSE]->(c)', event.op = 'd', 'MATCH (s:Spec {id: event.before.spec_id}) MATCH (c:Course {id: event.before.course_id}) MATCH (s)-[r:INCLUDES_COURSE]->(c) DELETE r', event.op = 'u', 'MATCH (s:Spec {id: event.before.spec_id}) MATCH (cBefore:Course {id: event.before.course_id}) MATCH (s)-[r:INCLUDES_COURSE]->(cBefore) DELETE r WITH * MATCH (ss:Spec {id: event.before.spec_id}) MATCH (cc:Course {id: event.after.course_id}) MERGE (ss)-[:INCLUDES_COURSE]->(cc)'], '', {event: event}) YIELD value as courses_in_spec RETURN courses_in_spec

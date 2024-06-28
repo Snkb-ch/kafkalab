@@ -1,0 +1,17 @@
+{
+  "name": "postgres-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "plugin.name": "pgoutput",
+    "database.hostname": "host.docker.internal",
+    "database.port": "5433",
+    "database.user": "root",
+    "database.password": "9967992",
+    "database.dbname": "postgres",
+    "database.server.name": "dbserver1",
+    "schema.include": "public",
+    "topic.prefix": "dbserver1",
+	"include.before": "true"
+  }
+}
